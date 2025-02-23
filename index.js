@@ -39,11 +39,11 @@ app.post("/signup", async (req, res) => {
       email: z.string().min(3).max(100).email(),
       password: z.string().min(3).max(30),
     });
-    // const parsedData = requiredBody.parse(req.body)
-    const parseDataWithSuccess = requiredBody.safeParse(req.body);
-    if (!parseDataWithSuccess.success) {
+    const { success, error } = requiredBody.safeParse(req.body);
+    if (!success) {
       return res.status(400).json({
         message: "Incorrect format",
+        error: error,
       });
     }
     const hashedPassword = await bcrypt.hash(req.body.password, 5);
