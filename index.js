@@ -10,6 +10,19 @@ mongoose.connect(process.env.MONGODB_URI + "todo-app");
 const app = express();
 app.use(express.json());
 
+function auth(req, res, next) {
+  try {
+    if (!req.headers.token) {
+      return res.status(401).json({ message: "Token missing in header." });
+    }
+    const decodedInfo = jwt.verify(req.headers.token, process.env.JWT_SECRET);
+    req.user = decodedInfo;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token." });
+  }
+}
+
 app.post("/signup", async (req, res) => {
   await User.create({
     name: req.body.name,
@@ -40,9 +53,32 @@ app.post("/signin", async (req, res) => {
   });
 });
 
-app.post("/todo", async (req, res) => {});
+app.post("/todo", auth, async (req, res) => {
+  try {
+    await Todo.create({
+      userId: req.user._id,
+      title: req.body.title,
+      done: false,
+    });
+    return res.status(200).json({ message: "Todo added successfully." });
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token." });
+  }
+});
 
-app.get("/todos", async (req, res) => {});
+app.get("/todos", auth, async (req, res) => {
+  const todos = await Todo.find(
+    {
+      userId: req.user._id,
+    },
+    {
+      userId: 1,
+      title: 1,
+      done: 1,
+    }
+  ).populate("userId", "name email");
+  return res.status(200).json(todos);
+});
 
 app.listen(3000, () => {
   console.log("Server is listening on port 3000.");
