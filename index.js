@@ -5,7 +5,14 @@ const mongoose = require("mongoose");
 const { User, Todo } = require("./db.js");
 const JWT_SECRET = process.env.JWT_SECRET;
 
-mongoose.connect(process.env.MONGODB_URI + "todo-app");
+async function startMongo() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI + "todo-app");
+    console.log("DB Connected Successfully.");
+  } catch (err) {
+    console.log(err);
+  }
+}
 
 const app = express();
 app.use(express.json());
@@ -80,6 +87,7 @@ app.get("/todos", auth, async (req, res) => {
   return res.status(200).json(todos);
 });
 
-app.listen(3000, () => {
+app.listen(3000, async () => {
   console.log("Server is listening on port 3000.");
+  await startMongo();
 });
