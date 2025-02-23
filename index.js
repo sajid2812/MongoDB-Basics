@@ -3,6 +3,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
+const { z } = require("zod");
 const { User, Todo } = require("./db.js");
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -32,13 +33,29 @@ function auth(req, res, next) {
 }
 
 app.post("/signup", async (req, res) => {
-  const hashedPassword = await bcrypt.hash(req.body.password, 5);
-  await User.create({
-    name: req.body.name,
-    email: req.body.email,
-    password: hashedPassword,
-  });
-  return res.status(200).json({ message: "You are logged in." });
+  try {
+    const requiredBody = z.object({
+      name: z.string().min(3).max(100),
+      email: z.string().min(3).max(100).email(),
+      password: z.string().min(3).max(30),
+    });
+    // const parsedData = requiredBody.parse(req.body)
+    const parseDataWithSuccess = requiredBody.safeParse(req.body);
+    if (!parseDataWithSuccess.success) {
+      return res.status(400).json({
+        message: "Incorrect format",
+      });
+    }
+    const hashedPassword = await bcrypt.hash(req.body.password, 5);
+    await User.create({
+      name: req.body.name,
+      email: req.body.email,
+      password: hashedPassword,
+    });
+  } catch (e) {
+    return res.status(400).json({ message: "User already exists." });
+  }
+  return res.status(200).json({ message: "You are signed up." });
 });
 
 app.post("/signin", async (req, res) => {
