@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
 const { User, Todo } = require("./db.js");
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -31,10 +32,11 @@ function auth(req, res, next) {
 }
 
 app.post("/signup", async (req, res) => {
+  const hashedPassword = await bcrypt.hash(req.body.password, 5);
   await User.create({
     name: req.body.name,
     email: req.body.email,
-    password: req.body.password,
+    password: hashedPassword,
   });
   return res.status(200).json({ message: "You are logged in." });
 });
@@ -42,21 +44,26 @@ app.post("/signup", async (req, res) => {
 app.post("/signin", async (req, res) => {
   const user = await User.findOne({
     email: req.body.email,
-    password: req.body.password,
   });
-  if (user) {
-    const token = jwt.sign(
-      {
-        _id: user._id,
-      },
-      JWT_SECRET
-    );
-    return res.status(200).json({
-      token,
+  if (!user) {
+    return res.status(401).json({
+      message: "User not found.",
     });
   }
-  return res.status(401).json({
-    message: "Invalid credentials.",
+  const passwordMatch = await bcrypt.compare(req.body.password, user.password);
+  if (!passwordMatch) {
+    return res.status(401).json({
+      message: "Invalid credentials.",
+    });
+  }
+  const token = jwt.sign(
+    {
+      _id: user._id,
+    },
+    JWT_SECRET
+  );
+  return res.status(200).json({
+    token,
   });
 });
 
